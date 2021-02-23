@@ -9,24 +9,32 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "createWorld", "createWorld.
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM = Debug|ARM
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
+		Release|ARM = Release|ARM
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3427C5EA-180F-48AD-B0B3-08536DF9D512}.Debug|ARM.ActiveCfg = Debug|x64
+		{3427C5EA-180F-48AD-B0B3-08536DF9D512}.Debug|ARM.Build.0 = Debug|x64
 		{3427C5EA-180F-48AD-B0B3-08536DF9D512}.Debug|x64.ActiveCfg = Debug|x64
 		{3427C5EA-180F-48AD-B0B3-08536DF9D512}.Debug|x64.Build.0 = Debug|x64
 		{3427C5EA-180F-48AD-B0B3-08536DF9D512}.Debug|x86.ActiveCfg = Debug|Win32
 		{3427C5EA-180F-48AD-B0B3-08536DF9D512}.Debug|x86.Build.0 = Debug|Win32
+		{3427C5EA-180F-48AD-B0B3-08536DF9D512}.Release|ARM.ActiveCfg = Release|ARM
+		{3427C5EA-180F-48AD-B0B3-08536DF9D512}.Release|ARM.Build.0 = Release|ARM
 		{3427C5EA-180F-48AD-B0B3-08536DF9D512}.Release|x64.ActiveCfg = Release|x64
 		{3427C5EA-180F-48AD-B0B3-08536DF9D512}.Release|x64.Build.0 = Release|x64
 		{3427C5EA-180F-48AD-B0B3-08536DF9D512}.Release|x86.ActiveCfg = Release|Win32
 		{3427C5EA-180F-48AD-B0B3-08536DF9D512}.Release|x86.Build.0 = Release|Win32
+		{32DDA8B1-72ED-45D4-A32D-3C3912558AB6}.Debug|ARM.ActiveCfg = Debug|x64
 		{32DDA8B1-72ED-45D4-A32D-3C3912558AB6}.Debug|x64.ActiveCfg = Debug|x64
 		{32DDA8B1-72ED-45D4-A32D-3C3912558AB6}.Debug|x64.Build.0 = Debug|x64
 		{32DDA8B1-72ED-45D4-A32D-3C3912558AB6}.Debug|x86.ActiveCfg = Debug|Win32
 		{32DDA8B1-72ED-45D4-A32D-3C3912558AB6}.Debug|x86.Build.0 = Debug|Win32
+		{32DDA8B1-72ED-45D4-A32D-3C3912558AB6}.Release|ARM.ActiveCfg = Release|Win32
 		{32DDA8B1-72ED-45D4-A32D-3C3912558AB6}.Release|x64.ActiveCfg = Release|x64
 		{32DDA8B1-72ED-45D4-A32D-3C3912558AB6}.Release|x64.Build.0 = Release|x64
 		{32DDA8B1-72ED-45D4-A32D-3C3912558AB6}.Release|x86.ActiveCfg = Release|Win32
