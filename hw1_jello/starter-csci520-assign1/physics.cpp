@@ -15,7 +15,7 @@
 void computeSpringForce(point *L, point *vL, point *f, double R, double k, double kd) {
 	double len, dampDot;
 	point fh = { 0, 0, 0 }, fd = { 0, 0, 0 };
-	pDistance(fh, *L, len);
+	pDISTANCE(fh, *L, len);
 	if (len == 0) return;
 
 	if (L->x != 0 && L->y != 0 && L->z != 0) {
@@ -45,6 +45,8 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 	point L = { 0, 0, 0 }, vL = { 0, 0, 0 }, f = { 0, 0, 0 }, structuralForce = { 0, 0, 0 }, shearForce = { 0, 0, 0 }, bendForce = { 0, 0, 0 }, collisionForce = { 0, 0, 0 };
 	double R = 0;
 
+	//force field variables init
+	point pWeights, pFloor, fieldForce, forceFieldVal[8], interpolationPoints[6], interpTemp, pOffset = { -.5, -.5, -.5 };
 
 	for (int i = 0; i < 8; i++) {
 		for (int j = 0; j < 8; j++) {
@@ -91,7 +93,7 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 								//^up to 6 cases for bend springs
 								pDIFFERENCE(jello->v[i][j][k], jello->v[i + l][j + m][k + n], vL);
 								pDIFFERENCE(jello->p[i][j][k], jello->p[i + l][j + m][k + n], L);
-								computeSpringForce(&L, &vL, &f, 1.0 / 14, jello->kElastic, jello->dElastic);
+								computeSpringForce(&L, &vL, &f, 1.0 / 3, jello->kElastic, jello->dElastic);
 								pSUM(bendForce, f, bendForce);
 							}
 
@@ -146,11 +148,45 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 
 				//reading and calculating force field forces
 
+				//Since the we are restricted to the bounding box, the positions can be from -4 to 4
+				//to change this range into 0 to 1 (for the interpolation weights), we divide by 4 (x0.25) and add .5
+				pMULTIPLY(p, 0.25, pWeights);
+				pDIFFERENCE(pWeights, pOffset, pWeights);
+				pCLAMP(pWeights);
+
+				//scale p from percent weights to force field resolution
+				pMULTIPLY(pWeights, jello->resolution - 1, pWeights);
+
+				//floor weights to get indices for force field array
+				pFloor.x = floor(pWeights.x);
+				pFloor.y = floor(pWeights.y);
+				pFloor.z = floor(pWeights.z);
+				
+				forceFieldVal[0] = jello->forceField[int(pFloor.x*jello->resolution*jello->resolution + pFloor.y * jello->resolution + pFloor.z)];
+				forceFieldVal[1] = jello->forceField[int(pFloor.x*jello->resolution*jello->resolution + pFloor.y * jello->resolution + pFloor.z+1)];
+				forceFieldVal[2] = jello->forceField[int(pFloor.x*jello->resolution*jello->resolution + (pFloor.y+1) * jello->resolution + pFloor.z)];
+				forceFieldVal[3] = jello->forceField[int(pFloor.x*jello->resolution*jello->resolution + (pFloor.y+1) * jello->resolution + pFloor.z+1)];
+				forceFieldVal[4] = jello->forceField[int((pFloor.x + 1)*jello->resolution*jello->resolution + pFloor.y * jello->resolution + pFloor.z)];
+				forceFieldVal[5] = jello->forceField[int((pFloor.x + 1)*jello->resolution*jello->resolution + pFloor.y * jello->resolution + pFloor.z+1)];
+				forceFieldVal[6] = jello->forceField[int((pFloor.x + 1)*jello->resolution*jello->resolution + (pFloor.y + 1) * jello->resolution + pFloor.z)];
+				forceFieldVal[7] = jello->forceField[int((pFloor.x + 1)*jello->resolution*jello->resolution + (pFloor.y + 1) * jello->resolution + pFloor.z+1)];
+
+				//return the weights to range between 0 and 1
+				pDIFFERENCE(pWeights, pFloor, pWeights);
+				pINTERPOLATE(forceFieldVal[0], forceFieldVal[1], pFloor.z, interpolationPoints[0], interpTemp);
+				pINTERPOLATE(forceFieldVal[2], forceFieldVal[3], pFloor.z, interpolationPoints[1], interpTemp);
+				pINTERPOLATE(forceFieldVal[4], forceFieldVal[5], pFloor.z, interpolationPoints[2], interpTemp);
+				pINTERPOLATE(forceFieldVal[6], forceFieldVal[7], pFloor.z, interpolationPoints[3], interpTemp);
+				pINTERPOLATE(interpolationPoints[0], interpolationPoints[1], pFloor.y, interpolationPoints[4], interpTemp);
+				pINTERPOLATE(interpolationPoints[2], interpolationPoints[3], pFloor.y, interpolationPoints[5], interpTemp);
+				pINTERPOLATE(interpolationPoints[4], interpolationPoints[5], pFloor.x, fieldForce, interpTemp);
+
 				//summing all calculated forces for jello point
 				pSUM(*currOutPoint, structuralForce, *currOutPoint);
 				pSUM(*currOutPoint, shearForce, *currOutPoint);
 				pSUM(*currOutPoint, bendForce, *currOutPoint);
 				pSUM(*currOutPoint, collisionForce, *currOutPoint);
+				pSUM(*currOutPoint, fieldForce, *currOutPoint);
 
 				pMULTIPLY(a[i][j][k], (1 / jello->mass), a[i][j][k]);
 			}

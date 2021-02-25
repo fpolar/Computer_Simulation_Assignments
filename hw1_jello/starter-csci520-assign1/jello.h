@@ -135,7 +135,7 @@ extern struct world jello;
 // finds distance from src to dest and returns the result in dist
 // struct point src,dest
 // double dist
-#define pDistance(src,dest,dist)\
+#define pDISTANCE(src,dest,dist)\
 \
   dist = sqrt(pow((dest).x - (src).x, 2)+pow((dest).y - (src).y, 2)+pow((dest).z - (src).z, 2));\
 
@@ -148,11 +148,10 @@ extern struct world jello;
 
 // interpolates between src and dest 3D points with weight w
 // result goes into res
-#define pINTERPOLATE(src,dest,w,res) \
-	point temp;\
+#define pINTERPOLATE(src,dest,w,res,interpTemp) \
 	pMULTIPLY(src, 1 - w, res);\
-	pMULTIPLY(dest, w, temp);\
-	pSUM(res, temp, res);
+	pMULTIPLY(dest, w, interpTemp);\
+	pSUM(res, interpTemp, res);
 
 // clamps all the values of the given point from 0(inclusive) to 1(exclusive)
 #define pCLAMP(p)\
