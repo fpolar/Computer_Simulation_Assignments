@@ -40,7 +40,7 @@ void myinit()
   gluPerspective(90.0,1.0,0.01,1000.0);
 
   // set background color to grey
-  glClearColor(0.3, 0.3, 0.8, 0.0);
+  glClearColor(0.7, 0.3, 0.8, 0.0);
 
   glCullFace(GL_BACK);
   glEnable(GL_CULL_FACE);

@@ -2,7 +2,7 @@
 
   USC/Viterbi/Computer Science
   "Jello Cube" Assignment 1 starter code
-
+  Frank Pol - 4727489361
 */
 
 #include "jello.h"
