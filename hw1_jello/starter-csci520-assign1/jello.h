@@ -146,14 +146,14 @@ extern struct world jello;
 \
   dot = (dest).x * (src).x + (dest).y* (src).y + (dest).z * (src).z;\
 
-// computes crossproduct of three vectors, which are specified by floating-point coordinates
-// double x1,y1,z1,x2,y2,z2,x,y,z
-// result goes into x,y,z
-#define pvBEND(x1,y1,z1,x2,y2,z2,x,y,z)\
-\
-  x = (y1) * (z2) - (y2) * (z1);\
-  y = (x2) * (z1) - (x1) * (z2);\
-  z = (x1) * (y2) - (x2) * (y1)
+// interpolates between src and dest 3D points with weight w
+// result goes into res
+#define pINTERPOLATE(src,dest,w,res) \
+	point temp;\
+	pMULTIPLY(src, 1 - w, res);\
+	pMULTIPLY(dest, w, temp);\
+	pSUM(res, temp, res);
+
 #endif
 
 

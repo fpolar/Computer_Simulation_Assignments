@@ -10,16 +10,9 @@
 #include <vector>
 
 
-/* Checks if point p moving at velocity v is colliding with any side of the box and 
-   computes the respective collision force(s)
-   Returns result in pointer to point f. */
-void computeCollisionForce(point *p, point *v, point *f, double k, double kd) {
-
-}
-
 /* Computes force on a spring with Hook's linear model of elasticity and linear damping
    Returns result in pointer to point f. */
-void computeSpringForce(point *L, point *LV, point *f, double R, double k, double kd) {
+void computeSpringForce(point *L, point *vL, point *f, double R, double k, double kd) {
 	double len, dampDot;
 	point fh = { 0, 0, 0 }, fd = { 0, 0, 0 };
 	pDistance(fh, *L, len);
@@ -33,7 +26,7 @@ void computeSpringForce(point *L, point *LV, point *f, double R, double k, doubl
 	//Hook's
 	pMULTIPLY(*L, -k * (len - R) / len, fh);
 	//linear damping
-	pDOT(*LV, *L, dampDot);
+	pDOT(*vL, *L, dampDot);
 	pMULTIPLY(*L, -kd * dampDot / len / len, fd);
 	pSUM(fh, fd, *f);
 }
@@ -48,8 +41,8 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 	point p, v; // current point and velocity from the jello world passed in
 	point *currOutPoint; // pointer to current point in a
 
-	//damping and stability forces init
-	point L = { 0, 0, 0 }, vL = { 0, 0, 0 }, f = { 0, 0, 0 }, structuralForce = { 0, 0, 0 }, shearForce = { 0, 0, 0 }, bendForce = { 0, 0, 0 };
+	//all vector and forces init
+	point L = { 0, 0, 0 }, vL = { 0, 0, 0 }, f = { 0, 0, 0 }, structuralForce = { 0, 0, 0 }, shearForce = { 0, 0, 0 }, bendForce = { 0, 0, 0 }, collisionForce = { 0, 0, 0 };
 	double R = 0;
 
 
@@ -57,15 +50,12 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 		for (int j = 0; j < 8; j++) {
 			for (int k = 0; k < 8; k++) {
 
-				a[i][j][k].x = 0;
-				a[i][j][k].y = 0;
-				a[i][j][k].z = 0;
+				a[i][j][k] = { 0,0,0 };
 
 				p = jello->p[i][j][k];
 				v = jello->v[i][j][k];
 				currOutPoint = &(a[i][j][k]);
 
-				//FODO memset? is it necessary? Maybe just structuralForce = { 0, 0, 0 }?
 				memset(currOutPoint, 0, sizeof(point));
 				memset(&structuralForce, 0, sizeof(point));
 				memset(&shearForce, 0, sizeof(point));
@@ -97,7 +87,7 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 								}
 							}
 							else if ((abs(l) == 2 && m == 0 && n == 0) || (abs(n) == 2 && l == 0 && m == 0) || (abs(m) == 2 && n == 0 && l == 0)) {
-								//^up to 6 cases for structural springs
+								//^up to 6 cases for bend springs
 								pDIFFERENCE(jello->v[i][j][k], jello->v[i + l][j + m][k + n], vL);
 								pDIFFERENCE(jello->p[i][j][k], jello->p[i + l][j + m][k + n], L);
 								computeSpringForce(&L, &vL, &f, 1.0 / 14, jello->kElastic, jello->dElastic);
@@ -107,9 +97,34 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 						}
 					}
 				}
+
+				//check for and compute collision forces
+				L = { 0, 0, 0 }, vL = v, f = { 0, 0, 0 };
+				if (p.x < -2) {
+					L.x = p.x + 2;
+				}
+				if (p.x > 2) {
+					L.x = p.x - 2;
+				}
+				if (p.y < -2) {
+					L.y = p.y + 2;
+				}
+				if (p.y > 2) {
+					L.y = p.y - 2;
+				}
+				if (p.z < -2) {
+					L.z = p.z + 2;
+				}
+				if (p.z > 2) {
+					L.z = p.z - 2;
+				}
+				computeSpringForce(&L, &vL, &f, 0, jello->kElastic, jello->dElastic);
+				pSUM(collisionForce, f, collisionForce);
+
 				pSUM(*currOutPoint, structuralForce, *currOutPoint);
 				pSUM(*currOutPoint, shearForce, *currOutPoint);
 				pSUM(*currOutPoint, bendForce, *currOutPoint);
+				pSUM(*currOutPoint, collisionForce, *currOutPoint);
 
 				//computeSpringForce(&a[i][j][k], &a[i][j][k], &a[i][j][k], 0, 0, 0);
 				pMULTIPLY(a[i][j][k], (1 / jello->mass), a[i][j][k]);
