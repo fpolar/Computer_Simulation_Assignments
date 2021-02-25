@@ -40,7 +40,7 @@ void myinit()
   gluPerspective(90.0,1.0,0.01,1000.0);
 
   // set background color to grey
-  glClearColor(0.5, 0.5, 0.5, 0.0);
+  glClearColor(0.3, 0.3, 0.8, 0.0);
 
   glCullFace(GL_BACK);
   glEnable(GL_CULL_FACE);
@@ -224,18 +224,6 @@ void doIdle()
 	  else {
 		  Euler(&jello);
 	  }
-	  /*
-	  //fly to top right
-	  for (int i = 0; i < 8; i++) {
-		  for (int j = 0; j < 8; j++) {
-			  for (int k = 0; k < 8; k++) {
-				  jello.p[i][j][k].x += .001;
-				  jello.p[i][j][k].y += .001;
-				  jello.p[i][j][k].z += .001;
-			  }
-		  }
-	  }
-	  */
   }
 
   glutPostRedisplay();

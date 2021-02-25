@@ -192,14 +192,14 @@ int main()
     for (j=0; j<=7; j++)
       for (k=0; k<=7; k++)
       {
-        jello.v[i][j][k].x=10.0;
-	  	  jello.v[i][j][k].y=-10.0;
-		    jello.v[i][j][k].z=20.0;
+        jello.v[i][j][k].x=0.0;
+	  	  jello.v[i][j][k].y=0.0;
+		    jello.v[i][j][k].z=0.0;
       }
 
   // write the jello variable out to file on disk
   // change jello.w to whatever you need
-  writeWorld("jello.w",&jello);
+  writeWorld("jelloo.w",&jello);
 
   return 0;
 }

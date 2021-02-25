@@ -10,27 +10,27 @@
 #include <vector>
 
 
-/* Computes hooks linear model of elasticity and linear damping
+/* Checks if point p moving at velocity v is colliding with any side of the box and 
+   computes the respective collision force(s)
    Returns result in pointer to point f. */
-void computeShearForce(struct world * jello, struct point a[8][8][8]) {
+void computeCollisionForce(point *p, point *v, point *f, double k, double kd) {
 
 }
 
-/* Computes hooks linear model of elasticity and linear damping
+/* Computes force on a spring with Hook's linear model of elasticity and linear damping
    Returns result in pointer to point f. */
 void computeSpringForce(point *L, point *LV, point *f, double R, double k, double kd) {
 	double len, dampDot;
 	point fh = { 0, 0, 0 }, fd = { 0, 0, 0 };
 	pDistance(fh, *L, len);
+	if (len == 0) return;
 
 	if (L->x != 0 && L->y != 0 && L->z != 0) {
 		int xyz = 0;
 	}
 
-	//FODO memset? is it necessary?
 	memset(f, 0, sizeof(point));
-	if (len == 0) return;
-	//Hook
+	//Hook's
 	pMULTIPLY(*L, -k * (len - R) / len, fh);
 	//linear damping
 	pDOT(*LV, *L, dampDot);
@@ -72,20 +72,44 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 				memset(&bendForce, 0, sizeof(point));
 
 				//computing forces from neighbors 
-				for (int l = -1; l <= 1; l++) {
-					for (int m = -1; m <= 1 ; m++) {
-						for (int n = -1; n <= 1; n++)
+				for (int l = -2; l <= 2; l++) {
+					for (int m = -2; m <= 2 ; m++) {
+						for (int n = -2; n <= 2; n++)
 						{
 							//do not compute forces with itself or anything out of bounds
 							if ((l == 0 && m == 0 && n == 0) || (i + l < 0 || i + l > 7 || j + m < 0 || j + m > 7 || k + n < 0 || k + n > 7)) continue;
 
-							//calculate R value based on relative positions of verts in the discrete cube being compared
-							//min = 0, max = ~1.732 (should be) 
-							R = sqrt(abs(l) + abs(m) + abs(n));
+							if (abs(l) < 2 && abs(m) < 2 && abs(n) < 2) {
+								pDIFFERENCE(jello->v[i][j][k], jello->v[i + l][j + m][k + n], vL);
+								pDIFFERENCE(jello->p[i][j][k], jello->p[i + l][j + m][k + n], L);
+								if ((abs(l) == 1 && m == 0 && n == 0) || (abs(n) == 1 && l == 0 && m == 0) || (abs(m) == 1 && n == 0 && l == 0)) {
+									//^up to 6 cases for structural springs
+									computeSpringForce(&L, &vL, &f, 1.0 / 7, jello->kElastic, jello->dElastic);
+									pSUM(structuralForce, f, structuralForce);
+								}
+								else {
+									//case for shear springs:
+									//calculate R value based on relative positions of verts in the discrete cube being compared
+									//min = 0, max = ~1.732 (should be) 
+									R = sqrt(abs(l) + abs(m) + abs(n));
+									computeSpringForce(&L, &vL, &f, 1.0 / 7*R, jello->kElastic, jello->dElastic);
+									pSUM(shearForce, f, shearForce);
+								}
+							}
+							else if ((abs(l) == 2 && m == 0 && n == 0) || (abs(n) == 2 && l == 0 && m == 0) || (abs(m) == 2 && n == 0 && l == 0)) {
+								//^up to 6 cases for structural springs
+								pDIFFERENCE(jello->v[i][j][k], jello->v[i + l][j + m][k + n], vL);
+								pDIFFERENCE(jello->p[i][j][k], jello->p[i + l][j + m][k + n], L);
+								computeSpringForce(&L, &vL, &f, 1.0 / 14, jello->kElastic, jello->dElastic);
+								pSUM(bendForce, f, bendForce);
+							}
 
 						}
 					}
 				}
+				pSUM(*currOutPoint, structuralForce, *currOutPoint);
+				pSUM(*currOutPoint, shearForce, *currOutPoint);
+				pSUM(*currOutPoint, bendForce, *currOutPoint);
 
 				//computeSpringForce(&a[i][j][k], &a[i][j][k], &a[i][j][k], 0, 0, 0);
 				pMULTIPLY(a[i][j][k], (1 / jello->mass), a[i][j][k]);

@@ -139,13 +139,21 @@ extern struct world jello;
 \
   dist = sqrt(pow((dest).x - (src).x, 2)+pow((dest).y - (src).y, 2)+pow((dest).z - (src).z, 2));\
 
-// mulitplies components of point src by scalar and returns the result in dist
+// finds the dot product of src and dest and stores it in dot
 // struct point src,dest
 // double dist
-#define pDOT(src,dest,dist)\
+#define pDOT(src,dest,dot)\
 \
-  dist = sqrt(pow((dest).x - (src).x, 2)+pow((dest).y - (src).y, 2)+pow((dest).z - (src).z, 2));\
+  dot = (dest).x * (src).x + (dest).y* (src).y + (dest).z * (src).z;\
 
+// computes crossproduct of three vectors, which are specified by floating-point coordinates
+// double x1,y1,z1,x2,y2,z2,x,y,z
+// result goes into x,y,z
+#define pvBEND(x1,y1,z1,x2,y2,z2,x,y,z)\
+\
+  x = (y1) * (z2) - (y2) * (z1);\
+  y = (x2) * (z1) - (x1) * (z2);\
+  z = (x1) * (y2) - (x2) * (y1)
 #endif
 
 
