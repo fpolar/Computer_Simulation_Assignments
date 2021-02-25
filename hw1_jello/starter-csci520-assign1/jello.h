@@ -131,5 +131,21 @@ extern struct world jello;
   (dest).y = (src).y * (scalar);\
   (dest).z = (src).z * (scalar);
 
+// custom definitions
+// finds distance from src to dest and returns the result in dist
+// struct point src,dest
+// double dist
+#define pDistance(src,dest,dist)\
+\
+  dist = sqrt(pow((dest).x - (src).x, 2)+pow((dest).y - (src).y, 2)+pow((dest).z - (src).z, 2));\
+
+// mulitplies components of point src by scalar and returns the result in dist
+// struct point src,dest
+// double dist
+#define pDOT(src,dest,dist)\
+\
+  dist = sqrt(pow((dest).x - (src).x, 2)+pow((dest).y - (src).y, 2)+pow((dest).z - (src).z, 2));\
+
 #endif
+
 

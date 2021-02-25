@@ -206,7 +206,7 @@ void doIdle()
   if (saveScreenToFile==1)
   {
     saveScreenshot(windowWidth, windowHeight, s);
-    saveScreenToFile=0; // save only once, change this if you want continuos image generation (i.e. animation)
+    saveScreenToFile=1; // save only once, change this if you want continuos image generation (i.e. animation)
     sprite++;
   }
 
@@ -218,6 +218,24 @@ void doIdle()
   if (pause == 0)
   {
     // insert code which appropriately performs one step of the cube simulation:
+	  if (jello.integrator[0] == 'R') {
+		  RK4(&jello);
+	  }
+	  else {
+		  Euler(&jello);
+	  }
+	  /*
+	  //fly to top right
+	  for (int i = 0; i < 8; i++) {
+		  for (int j = 0; j < 8; j++) {
+			  for (int k = 0; k < 8; k++) {
+				  jello.p[i][j][k].x += .001;
+				  jello.p[i][j][k].y += .001;
+				  jello.p[i][j][k].z += .001;
+			  }
+		  }
+	  }
+	  */
   }
 
   glutPostRedisplay();

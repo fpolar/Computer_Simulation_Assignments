@@ -7,6 +7,36 @@
 
 #include "jello.h"
 #include "physics.h"
+#include <vector>
+
+
+/* Computes hooks linear model of elasticity and linear damping
+   Returns result in pointer to point f. */
+void computeShearForce(struct world * jello, struct point a[8][8][8]) {
+
+}
+
+/* Computes hooks linear model of elasticity and linear damping
+   Returns result in pointer to point f. */
+void computeSpringForce(point *L, point *LV, point *f, double R, double k, double kd) {
+	double len, dampDot;
+	point fh = { 0, 0, 0 }, fd = { 0, 0, 0 };
+	pDistance(fh, *L, len);
+
+	if (L->x != 0 && L->y != 0 && L->z != 0) {
+		int xyz = 0;
+	}
+
+	//FODO memset? is it necessary?
+	memset(f, 0, sizeof(point));
+	if (len == 0) return;
+	//Hook
+	pMULTIPLY(*L, -k * (len - R) / len, fh);
+	//linear damping
+	pDOT(*LV, *L, dampDot);
+	pMULTIPLY(*L, -kd * dampDot / len / len, fd);
+	pSUM(fh, fd, *f);
+}
 
 /* Computes acceleration to every control point of the jello cube, 
    which is in state given by 'jello'.
@@ -14,6 +44,54 @@
 void computeAcceleration(struct world * jello, struct point a[8][8][8])
 {
   /* for you to implement ... */
+
+	point p, v; // current point and velocity from the jello world passed in
+	point *currOutPoint; // pointer to current point in a
+
+	//damping and stability forces init
+	point L = { 0, 0, 0 }, vL = { 0, 0, 0 }, f = { 0, 0, 0 }, structuralForce = { 0, 0, 0 }, shearForce = { 0, 0, 0 }, bendForce = { 0, 0, 0 };
+	double R = 0;
+
+
+	for (int i = 0; i < 8; i++) {
+		for (int j = 0; j < 8; j++) {
+			for (int k = 0; k < 8; k++) {
+
+				a[i][j][k].x = 0;
+				a[i][j][k].y = 0;
+				a[i][j][k].z = 0;
+
+				p = jello->p[i][j][k];
+				v = jello->v[i][j][k];
+				currOutPoint = &(a[i][j][k]);
+
+				//FODO memset? is it necessary? Maybe just structuralForce = { 0, 0, 0 }?
+				memset(currOutPoint, 0, sizeof(point));
+				memset(&structuralForce, 0, sizeof(point));
+				memset(&shearForce, 0, sizeof(point));
+				memset(&bendForce, 0, sizeof(point));
+
+				//computing forces from neighbors 
+				for (int l = -1; l <= 1; l++) {
+					for (int m = -1; m <= 1 ; m++) {
+						for (int n = -1; n <= 1; n++)
+						{
+							//do not compute forces with itself or anything out of bounds
+							if ((l == 0 && m == 0 && n == 0) || (i + l < 0 || i + l > 7 || j + m < 0 || j + m > 7 || k + n < 0 || k + n > 7)) continue;
+
+							//calculate R value based on relative positions of verts in the discrete cube being compared
+							//min = 0, max = ~1.732 (should be) 
+							R = sqrt(abs(l) + abs(m) + abs(n));
+
+						}
+					}
+				}
+
+				//computeSpringForce(&a[i][j][k], &a[i][j][k], &a[i][j][k], 0, 0, 0);
+				pMULTIPLY(a[i][j][k], (1 / jello->mass), a[i][j][k]);
+			}
+		}
+	}
 }
 
 /* performs one step of Euler Integration */

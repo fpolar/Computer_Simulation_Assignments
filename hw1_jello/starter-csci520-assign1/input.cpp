@@ -155,7 +155,8 @@ void readWorld (char * fileName, struct world * jello)
  
 /* 
 
-  File should first contain a line specifying the integrator (EULER or RK4).
+  File should first contain a line specifying the 
+  (EULER or RK4).
   Example: EULER
   
   Then, follows one line specifying the size of the timestep for the integrator, and
