@@ -46,7 +46,7 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 	double R = 0;
 
 	//force field variables init
-	point pWeights, pFloor, fieldForce, forceFieldVal[8], interpolationPoints[6], interpTemp, pOffset = { -.5, -.5, -.5 };
+	point pWeights = {0,0,0}, pFloor, fieldForce, forceFieldVal[8], interpolationPoints[6], interpTemp, pOffset = { -.5, -.5, -.5 };
 
 	for (int i = 0; i < 8; i++) {
 		for (int j = 0; j < 8; j++) {
@@ -106,46 +106,24 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 				L = { 0, 0, 0 }, vL = v, f = { 0, 0, 0 };
 				if (p.x <= -2) {
 					L.x = p.x + 2;
-					pCLAMPN(L);
-					computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
-					pSUM(collisionForce, f, collisionForce);
-					L = { 0, 0, 0 };
 				}
 				if (p.x >= 2) {
 					L.x = p.x - 2;
-					pCLAMP(L);
-					computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
-					pSUM(collisionForce, f, collisionForce);
-					L = { 0, 0, 0 };
 				}
 				if (p.y <= -2) {
 					L.y = p.y + 2;
-					pCLAMPN(L);
-					computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
-					pSUM(collisionForce, f, collisionForce);
-					L = { 0, 0, 0 };
 				}
 				if (p.y >= 2) {
 					L.y = p.y - 2;
-					pCLAMP(L);
-					computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
-					pSUM(collisionForce, f, collisionForce);
-					L = { 0, 0, 0 };
 				}
 				if (p.z <= -2) {
 					L.z = p.z + 2;
-					pCLAMPN(L);
-					computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
-					pSUM(collisionForce, f, collisionForce);
-					L = { 0, 0, 0 };
 				}
 				if (p.z >= 2) {
 					L.z = p.z - 2;
-					pCLAMP(L);
-					computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
-					pSUM(collisionForce, f, collisionForce);
-					L = { 0, 0, 0 };
 				}
+				computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
+				pSUM(collisionForce, f, collisionForce);
 
 				//reading and calculating force field forces
 
@@ -174,13 +152,13 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 
 				//return the weights to range between 0 and 1
 				pDIFFERENCE(pWeights, pFloor, pWeights);
-				pINTERPOLATE(forceFieldVal[0], forceFieldVal[1], pFloor.z, interpolationPoints[0], interpTemp);
-				pINTERPOLATE(forceFieldVal[2], forceFieldVal[3], pFloor.z, interpolationPoints[1], interpTemp);
-				pINTERPOLATE(forceFieldVal[4], forceFieldVal[5], pFloor.z, interpolationPoints[2], interpTemp);
-				pINTERPOLATE(forceFieldVal[6], forceFieldVal[7], pFloor.z, interpolationPoints[3], interpTemp);
-				pINTERPOLATE(interpolationPoints[0], interpolationPoints[1], pFloor.y, interpolationPoints[4], interpTemp);
-				pINTERPOLATE(interpolationPoints[2], interpolationPoints[3], pFloor.y, interpolationPoints[5], interpTemp);
-				pINTERPOLATE(interpolationPoints[4], interpolationPoints[5], pFloor.x, fieldForce, interpTemp);
+				pINTERPOLATE(forceFieldVal[0], forceFieldVal[1], pWeights.z, interpolationPoints[0], interpTemp);
+				pINTERPOLATE(forceFieldVal[2], forceFieldVal[3], pWeights.z, interpolationPoints[1], interpTemp);
+				pINTERPOLATE(forceFieldVal[4], forceFieldVal[5], pWeights.z, interpolationPoints[2], interpTemp);
+				pINTERPOLATE(forceFieldVal[6], forceFieldVal[7], pWeights.z, interpolationPoints[3], interpTemp);
+				pINTERPOLATE(interpolationPoints[0], interpolationPoints[1], pWeights.y, interpolationPoints[4], interpTemp);
+				pINTERPOLATE(interpolationPoints[2], interpolationPoints[3], pWeights.y, interpolationPoints[5], interpTemp);
+				pINTERPOLATE(interpolationPoints[4], interpolationPoints[5], pWeights.x, fieldForce, interpTemp);
 
 				//summing all calculated forces for jello point
 				pSUM(*currOutPoint, structuralForce, *currOutPoint);

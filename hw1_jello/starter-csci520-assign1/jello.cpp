@@ -218,6 +218,7 @@ void doIdle()
   if (pause == 0)
   {
     // insert code which appropriately performs one step of the cube simulation:
+	  //for (i = 1; i <= jello.n; i++){
 	  if (jello.integrator[0] == 'R') {
 		  RK4(&jello);
 	  }
