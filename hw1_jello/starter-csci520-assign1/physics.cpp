@@ -62,7 +62,8 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 				memset(&structuralForce, 0, sizeof(point));
 				memset(&shearForce, 0, sizeof(point));
 				memset(&bendForce, 0, sizeof(point));
-				//memset(&collisionForce, 0, sizeof(point));
+				memset(&collisionForce, 0, sizeof(point));
+				memset(&fieldForce, 0, sizeof(point));
 
 				//computing forces from neighbors 
 				for (int l = -2; l <= 2; l++) {
@@ -93,7 +94,7 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 								//^up to 6 cases for bend springs
 								pDIFFERENCE(jello->v[i][j][k], jello->v[i + l][j + m][k + n], vL);
 								pDIFFERENCE(jello->p[i][j][k], jello->p[i + l][j + m][k + n], L);
-								computeSpringForce(&L, &vL, &f, 1.0 / 3, jello->kElastic, jello->dElastic);
+								computeSpringForce(&L, &vL, &f, 1.0 / 7 * 2, jello->kElastic, jello->dElastic);
 								pSUM(bendForce, f, bendForce);
 							}
 
