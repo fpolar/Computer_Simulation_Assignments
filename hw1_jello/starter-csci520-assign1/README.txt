@@ -5,6 +5,9 @@ Frank Pol
 
 ================
 
+The executable is fpolar_hw1_jello/starter-csci520-assign1Bin/Debug/jello.exe
+to run it I cd into fpolar_hw1_jello/starter-csci520-assign1Bin/Debug and run "jello.exe ../../world/gravity.w"
+
 <Description of what you have accomplished>
 
 Most of my work was in the computeAcceleration function, where a for loop runs through every vertice in the jello world and 
