@@ -154,6 +154,50 @@ extern struct world jello;
 	pMULTIPLY(dest, w, temp);\
 	pSUM(res, temp, res);
 
+// clamps all the values of the given point from 0(inclusive) to 1(exclusive)
+#define pCLAMP(p)\
+\
+	if((p).x >= 1){\
+		(p).x = .999;\
+	}\
+	if((p).y >= 1){\
+		(p).y = .999;\
+	}\
+	if((p).z >= 1){\
+		(p).z = .999;\
+	}\
+	if((p).x < 0){\
+		(p).x = 0;\
+	}\
+	if((p).y < 0){\
+		(p).y = 0;\
+	}\
+	if((p).z < 0){\
+		(p).z = 0;\
+	}\
+
+// clamps all the values of the given point from 0(inclusive) to 1(exclusive)
+#define pCLAMPN(p)\
+\
+	if((p).x <= -1){\
+		(p).x = -.999;\
+	}\
+	if((p).y <= -1){\
+		(p).y = -.999;\
+	}\
+	if((p).z <= -1){\
+		(p).z = -.999;\
+	}\
+	if((p).x > 0){\
+		(p).x = 0;\
+	}\
+	if((p).y > 0){\
+		(p).y = 0;\
+	}\
+	if((p).z > 0){\
+		(p).z = 0;\
+	}\
+
 #endif
 
 

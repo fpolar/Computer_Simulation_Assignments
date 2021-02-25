@@ -103,41 +103,50 @@ void computeAcceleration(struct world * jello, struct point a[8][8][8])
 				L = { 0, 0, 0 }, vL = v, f = { 0, 0, 0 };
 				if (p.x <= -2) {
 					L.x = p.x + 2;
+					pCLAMPN(L);
 					computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
 					pSUM(collisionForce, f, collisionForce);
 					L = { 0, 0, 0 };
 				}
 				if (p.x >= 2) {
 					L.x = p.x - 2;
+					pCLAMP(L);
 					computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
 					pSUM(collisionForce, f, collisionForce);
 					L = { 0, 0, 0 };
 				}
 				if (p.y <= -2) {
 					L.y = p.y + 2;
+					pCLAMPN(L);
 					computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
 					pSUM(collisionForce, f, collisionForce);
 					L = { 0, 0, 0 };
 				}
 				if (p.y >= 2) {
 					L.y = p.y - 2;
+					pCLAMP(L);
 					computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
 					pSUM(collisionForce, f, collisionForce);
 					L = { 0, 0, 0 };
 				}
 				if (p.z <= -2) {
 					L.z = p.z + 2;
+					pCLAMPN(L);
 					computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
 					pSUM(collisionForce, f, collisionForce);
 					L = { 0, 0, 0 };
 				}
 				if (p.z >= 2) {
 					L.z = p.z - 2;
+					pCLAMP(L);
 					computeSpringForce(&L, &vL, &f, 0, jello->kCollision, jello->dCollision);
 					pSUM(collisionForce, f, collisionForce);
 					L = { 0, 0, 0 };
 				}
 
+				//reading and calculating force field forces
+
+				//summing all calculated forces for jello point
 				pSUM(*currOutPoint, structuralForce, *currOutPoint);
 				pSUM(*currOutPoint, shearForce, *currOutPoint);
 				pSUM(*currOutPoint, bendForce, *currOutPoint);
