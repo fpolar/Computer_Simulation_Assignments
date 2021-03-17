@@ -121,6 +121,63 @@ void Interpolator::Euler2Rotation(double angles[3], double R[9])
 void Interpolator::BezierInterpolationEuler(Motion * pInputMotion, Motion * pOutputMotion, int N)
 {
   // students should implement this
+	
+	vector p1, p2, p3, p4, a, b;
+
+	int frameCount = pInputMotion->GetNumFrames();
+	int startKeyFrame = 0;
+
+	while (startKeyFrame + N + 1 < frameCount) {
+		int endKeyFrame = startKeyFrame + N + 1;
+		int prevKeyFrame = startKeyFrame - N - 1;
+		int nextKeyFrame = endKeyFrame + N + 1;
+
+	// straight copy of the first and last (start/end) key frames 
+		Posture *startPosture = pInputMotion->GetPosture(startKeyFrame);
+		Posture *endPosture = pInputMotion->GetPosture(endKeyFrame);
+		pOutputMotion->SetPosture(startKeyFrame, *startPosture);
+		pOutputMotion->SetPosture(endKeyFrame, *endPosture);
+
+	// interpolate the in betweens
+		Posture *prevPosture;
+		Posture *nextPosture;
+
+		for (int f = 1; f <= N; f++) {
+			p2 = startPosture->root_pos;
+			p3 = endPosture->root_pos;
+
+			Posture interpolatedPosture;
+			double t = 1.0 * f / (N + 1);
+			if (startKeyFrame == 0) { 
+				//first frame
+				nextPosture = pInputMotion->GetPosture(nextKeyFrame);
+				p3 = nextPosture->root_pos;
+				a = p1 + ((p2 + p2 - p3) - p1) / 3;
+				b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
+			}else if(nextKeyFrame > frameCount) {
+				//last frame
+				prevPosture = pInputMotion->GetPosture(prevKeyFrame);
+				p1 = prevPosture->root_pos;
+				a = p2 + (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
+				b = p3 + ((p2 + p2 - p1) - p3) / 3;
+			}
+			else {
+				//in betweens
+				prevPosture = pInputMotion->GetPosture(prevKeyFrame);
+				nextPosture = pInputMotion->GetPosture(nextKeyFrame);
+				p1 = prevPosture->root_pos;
+				p4 = nextPosture->root_pos;
+				a = p2 + (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
+				b = p3 - (((p3 + p3 - p2) + p4) / 2 - p3) / 3;
+			}
+
+
+			interpolatedPosture.root_pos = DeCasteljauEuler(t, p1, a, b, p2); 
+
+		}
+
+	}
+
 }
 
 void Interpolator::LinearInterpolationQuaternion(Motion * pInputMotion, Motion * pOutputMotion, int N)
@@ -147,6 +204,21 @@ Quaternion<double> Interpolator::Slerp(double t, Quaternion<double> & qStart, Qu
 {
   // students should implement this
   Quaternion<double> result;
+  double cosq = qStart.Gets() * qEnd_.Gets() + qStart.Getx() * qEnd_.Getx() + qStart.Gety() * qEnd_.Gety() + qStart.Getz() * qEnd_.Getz();
+  int sign = 1;
+  if (cosq < 0) { //<= ?
+	sign = -1;
+  }
+  double a = acos(sign*cosq);
+  double sinq = sin(a);
+  //error check ?
+  //if (sinq == 0 || sinq != sinq)
+  //{
+	 // return qStart;
+  //}
+
+  result = (sin((1 - t) * a) * qStart + sign*sin(t * a) *  qEnd_) / sinq;
+  result.Normalize();
   return result;
 }
 
@@ -154,20 +226,48 @@ Quaternion<double> Interpolator::Double(Quaternion<double> p, Quaternion<double>
 {
   // students should implement this
   Quaternion<double> result;
+  double cosq = p.Gets() * q.Gets() + p.Getx() * q.Getx() + p.Gety() * q.Gety() + p.Getz() * q.Getz();
+  int sign = 1;
+  if (cosq < 0) { //<= ?
+	  sign = -1;
+  }
+  double a = acos(sign*cosq);
+  double sinq = sin(a);
+  //error check ?
+  //if (sinq == 0 || sinq != sinq)
+  //{
+	 // return qStart;
+  //}
+
+  result = (sin((1 - 2.0) * a) * p + sign*sin(2.0 * a) *  q) / sinq;
+  result.Normalize();
   return result;
 }
 
+//whoops I labeled the vectors based on the slides before I saw this func TODO refactor?
 vector Interpolator::DeCasteljauEuler(double t, vector p0, vector p1, vector p2, vector p3)
 {
   // students should implement this
-  vector result;
+  vector result, q0, q1, q2;
+
+  q0 = p0 * (1 - t) + p1 * t;
+  q1 = p1 * (1 - t) + p2 * t;
+  q2 = p2 * (1 - t) + p3 * t;
+  result = (q0 * (1 - t) + q1 * t) * (1 - t) + (q1 * (1 - t) + q2 * t) * t;
+  
   return result;
 }
 
 Quaternion<double> Interpolator::DeCasteljauQuaternion(double t, Quaternion<double> p0, Quaternion<double> p1, Quaternion<double> p2, Quaternion<double> p3)
 {
   // students should implement this
-  Quaternion<double> result;
+  Quaternion<double> result, q0, q1, q2;
+
+  q0 = Slerp(t, p0, p1);
+  q1 = Slerp(t, p1, p2);
+  q2 = Slerp(t, p2, p3);
+  result = Slerp(t, Slerp(t, q0, q1), Slerp(t, q1, q2));
+
   return result;
 }
 
