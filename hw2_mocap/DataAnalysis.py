@@ -1,23 +1,26 @@
 import numpy as np 
 from matplotlib import pyplot as plt 
 
-def readRotationValues():
+def readRotationValues(path, bone, dim):
 
-	file1 = open('csci520-assignment2-startercode\\IDE-starter\\VS2017\\Debug\\131_04-dance.amc', 'r')
+	# file1 = open('csci520-assignment2-startercode\\IDE-starter\\VS2017\\Debug\\131_04-dance.amc', 'r')
+	file1 = open(path, 'r')
 	Lines = file1.readlines()
 	 
-	root_count = 0
-	lfemur_count = 0
+	bone_count = 0
 	count = 0
+	out = []
 
 	for line in Lines:
-	    count += 1
-	    if 'lfemur' in line:
-	    	lfemur_count += 1
-	    	x_rot = line.split(" ")[1]
-	    	print("LFemur {}: {}".format(lfemur_count, x_rot))
+	    if bone in line:
+	    	# bone_count += 1
+	    	val = line.split(" ")[dim]
+	    	out.append(val)
+	    	# print("{} {}: {}".format(bone, bone_count, val))
 	    # print("Line{}: {}".format(count, line))
 	    # print("Line{}: {}".format(count, line.strip()))
+
+	return out
 
 def G1():
 	x = np.arange(600, 800) 
@@ -30,4 +33,5 @@ def G1():
 	plt.plot(x,y) 
 	plt.show()
 
-readRotationValues()
+lfemurIN = readRotationValues('csci520-assignment2-startercode\\IDE-starter\\VS2017\\Debug\\131_04-dance.amc', 'lfemur', 1)
+print(lfemurIN)
