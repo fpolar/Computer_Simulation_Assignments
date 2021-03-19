@@ -58,6 +58,7 @@ public:
 
   Skeleton * GetSkeleton() { return pSkeleton; }
 
+
 protected:
   int m_NumFrames; //number of frames in the motion 
   Skeleton * pSkeleton;

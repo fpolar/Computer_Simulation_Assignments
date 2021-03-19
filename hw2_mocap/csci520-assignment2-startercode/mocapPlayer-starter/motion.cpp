@@ -17,56 +17,64 @@ Revision 3 - Jernej Barbic and Yili Zhao, Feb, 2012
 
 Motion::Motion(int numFrames_, Skeleton * pSkeleton_)
 {
-  pSkeleton = pSkeleton_;
-  m_NumFrames = numFrames_;
+	pSkeleton = pSkeleton_;
+	m_NumFrames = numFrames_;
 
-  //allocate postures array
-  m_pPostures = new Posture[m_NumFrames];
+	//allocate postures array
+	m_pPostures = new Posture[m_NumFrames];
 
-  //Set all postures to default posture
-  SetPosturesToDefault();
+	//Set all postures to default posture
+	SetPosturesToDefault();
 }
 
 Motion::Motion(char *amc_filename, double scale, Skeleton * pSkeleton_)
 {
-  pSkeleton = pSkeleton_;
-  m_NumFrames = 0;
-  m_pPostures = NULL;
+	pSkeleton = pSkeleton_;
+	m_NumFrames = 0;
+	m_pPostures = NULL;
 
-  int code = readAMCfile(amc_filename, scale);	
-  if (code < 0)
-    throw 1;
+	int code = readAMCfile(amc_filename, scale);
+	if (code < 0)
+		throw 1;
 }
 
 Motion::~Motion()
 {
-  if (m_pPostures != NULL)
-    delete [] m_pPostures;
+	if (m_pPostures != NULL)
+		delete[] m_pPostures;
 }
 
 //Set all postures to default posture
 void Motion::SetPosturesToDefault()
 {
-  for (int frame = 0; frame<m_NumFrames; frame++)
-  {
-    //set root position to (0,0,0)
-    m_pPostures[frame].root_pos.setValue(0.0, 0.0, 0.0);
-    //set each bone orientation to (0,0,0)
-    for (int j = 0; j < MAX_BONES_IN_ASF_FILE; j++)
-      m_pPostures[frame].bone_rotation[j].setValue(0.0, 0.0, 0.0);
+	for (int frame = 0; frame < m_NumFrames; frame++)
+	{
+		//set root position to (0,0,0)
+		m_pPostures[frame].root_pos.setValue(0.0, 0.0, 0.0);
+		//set each bone orientation to (0,0,0)
+		for (int j = 0; j < MAX_BONES_IN_ASF_FILE; j++)
+			m_pPostures[frame].bone_rotation[j].setValue(0.0, 0.0, 0.0);
 
-  }
+	}
 }
 
 //Set posture at spesified frame
 void Motion::SetPosture(int frameIndex, Posture InPosture)
 {
-  m_pPostures[frameIndex] = InPosture; 	
+	m_pPostures[frameIndex] = InPosture;
 }
 
 void Motion::SetBoneRotation(int frameIndex, int boneIndex, vector vRot)
 {
-  m_pPostures[frameIndex].bone_rotation[boneIndex] = vRot;
+	m_pPostures[frameIndex].bone_rotation[boneIndex] = vRot;
+	//printf(pSkeleton->idx2name(boneIndex));
+	//if (frameIndex <= 800 && frameIndex >= 600 && strcmp(pSkeleton->idx2name(boneIndex), "lfemur") == 0) {
+	//	printf("LFEMUR %F\n\n", vRot[0]);
+	//}
+	//if (frameIndex <= 200 && frameIndex >= 500 && strcmp(pSkeleton->idx2name(boneIndex), "root") == 0) {
+	//	printf("ROOT %F\n\n ", vRot[2]);
+
+	//}
 }
 
 void Motion::SetRootPos(int frameIndex, vector vPos)
