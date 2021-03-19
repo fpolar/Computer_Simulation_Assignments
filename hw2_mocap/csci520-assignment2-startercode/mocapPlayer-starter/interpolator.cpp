@@ -221,49 +221,7 @@ void Interpolator::BezierInterpolationEuler(Motion * pInputMotion, Motion * pOut
 
 void Interpolator::LinearInterpolationQuaternion(Motion * pInputMotion, Motion * pOutputMotion, int N)
 {
-  // students should implement this
-	int inputLength = pInputMotion->GetNumFrames(); // frames are indexed 0, ..., inputLength-1
-
-	int startKeyframe = 0;
-	while (startKeyframe + N + 1 < inputLength)
-	{
-		int endKeyframe = startKeyframe + N + 1;
-
-		Posture * startPosture = pInputMotion->GetPosture(startKeyframe);
-		Posture * endPosture = pInputMotion->GetPosture(endKeyframe);
-
-		// copy start and end keyframe
-		pOutputMotion->SetPosture(startKeyframe, *startPosture);
-		pOutputMotion->SetPosture(endKeyframe, *endPosture);
-
-		// interpolate in between
-		for (int frame = 1; frame <= N; frame++)
-		{
-			Posture interpolatedPosture;
-			double t = 1.0 * frame / (N + 1);
-
-			// interpolate root position
-			interpolatedPosture.root_pos = startPosture->root_pos * (1 - t) + endPosture->root_pos * t;
-
-			// interpolate bone rotations
-			Quaternion<double> qStart, qEnd, slurpedUp;
-			for (int bone = 0; bone < MAX_BONES_IN_ASF_FILE; bone++)
-			{
-				//printf("%d BONE: %f %f %f \n\n", frame, startPosture->bone_rotation[bone].p[0], startPosture->bone_rotation[bone].p[1], startPosture->bone_rotation[bone].p[2]);
-				Euler2Quaternion(startPosture->bone_rotation[bone].p, qStart);
-				Euler2Quaternion(endPosture->bone_rotation[bone].p, qEnd);
-				slurpedUp = Slerp(t, qStart, qEnd);
-				Quaternion2Euler(slurpedUp, interpolatedPosture.bone_rotation[bone].p);
-			}
-			pOutputMotion->SetPosture(startKeyframe + frame, interpolatedPosture);
-		}
-
-		startKeyframe = endKeyframe;
-	}
-
-	for (int frame = startKeyframe + 1; frame < inputLength; frame++)
-		pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
-	/*
+  
 	int frameCount = pInputMotion->GetNumFrames();
 	int startKeyFrame = 0;
 
@@ -298,7 +256,6 @@ void Interpolator::LinearInterpolationQuaternion(Motion * pInputMotion, Motion *
 	for (int f = startKeyFrame + 1; f < frameCount; f++) {
 		pOutputMotion->SetPosture(f, *(pInputMotion->GetPosture(f)));
 	}
-	*/
 }
 
 void Interpolator::BezierInterpolationQuaternion(Motion * pInputMotion, Motion * pOutputMotion, int N)
@@ -401,76 +358,87 @@ void Interpolator::BezierInterpolationQuaternion(Motion * pInputMotion, Motion *
 	}
 }
 
-void Interpolator::Euler2Quaternion(double angles[3], Quaternion<double> & q) 
+void Interpolator::Euler2Quaternion(double angles[3], Quaternion<double> & q)
 {
-  // students should implement this
 	double R[9];
 	Euler2Rotation(angles, R);
 	q = Quaternion<double>::Matrix2Quaternion(R);
-	//printf("%f %f %f %f \n", q.Getx(), q.Gety(), q.Getz(), q.Gets());
 	q.Normalize();
-	//printf("%f %f %f %f \n", q.Getx(), q.Gety(), q.Getz(), q.Gets());
 }
 
-void Interpolator::Quaternion2Euler(Quaternion<double> & q, double angles[3]) 
+void Interpolator::Quaternion2Euler(Quaternion<double> & q, double angles[3])
 {
-  // students should implement this
 	double R[9];
 	q.Quaternion2Matrix(R);
 	Rotation2Euler(R, angles);
 }
 
-Quaternion<double> Interpolator::Slerp(double t, Quaternion<double> & qStart, Quaternion<double> & qEnd_)
+
+//	Quaternion operations
+Quaternion<double> Interpolator::Slerp(double t, Quaternion<double> & qStart, Quaternion<double> & qEnd)
 {
-  //students should implement this
-  Quaternion<double> result;
-  //printf("SLERP START: %f %f %f %f %f %f %f %f\n", qStart.Gets(), qEnd_.Gets(), qStart.Getx(), qEnd_.Getx(), qStart.Gety(), qEnd_.Gety(),qStart.Getz(), qEnd_.Getz());
-  double cosq = qStart.Gets() * qEnd_.Gets() + qStart.Getx() * qEnd_.Getx() + qStart.Gety() * qEnd_.Gety() + qStart.Getz() * qEnd_.Getz();
-  double sign = 1.0;
-  if (cosq < 0) { //<= ?
-	sign = -1.0;
-  }
-  double angle = acos(sign*cosq);
-  double sinq = sin(angle);
-  //error check ?
-  if (sinq == 0.0)
-  {
-	//printf("sinq error thrown: %f %f\n", sinq, cosq);
-	 return qStart;
-  }
-  else {
+	Quaternion<double> result;
 
-	  //printf("\nsinq all good %f %f\n", sinq, cosq);
-  }
-
-  //printf("SLERP: %f %f %f %f\n", t, angle, sinq, cosq);
-  result = (sin((1 - t) * angle) * qStart + sign*sin(t * angle) *  qEnd_) / sinq;
-  result.Normalize();
-  qEnd_ = result;
-  return result;
+	double cosq = qStart.Gets() * qEnd.Gets() + qStart.Getx() * qEnd.Getx() + qStart.Gety() * qEnd.Gety() + qStart.Getz() * qEnd.Getz();
+	double a, sinq;
+	if (cosq > 0)
+	{
+		a = acos(cosq);
+		sinq = sin(a);
+		if (sinq == 0 || sinq != sinq)//error check
+		{
+			return qStart;
+		}
+		result = (sin((1 - t) * a) * qStart + sin(t * a) * qEnd) / sinq;
+		result.Normalize();
+		return result;
+	}
+	else
+	{
+		a = acos(-cosq);
+		sinq = sin(a);
+		if (sinq == 0 || sinq != sinq)//error check
+		{
+			return qStart;
+		}
+		result = (sin((1 - t) * a) * qStart + -sin(t * a) *  qEnd) / sinq;
+		result.Normalize();
+		return result;
+	}
 }
 
 Quaternion<double> Interpolator::Double(Quaternion<double> p, Quaternion<double> q)
 {
-  // students should implement this
-  Quaternion<double> result;
-  double cosq = p.Gets() * q.Gets() + p.Getx() * q.Getx() + p.Gety() * q.Gety() + p.Getz() * q.Getz();
-  int sign = 1;
-  if (cosq <= 0) { //<= ?
-	  sign = -1;
-  }
-  double a = acos(sign*cosq);
-  double sinq = sin(a);
-  //error check ?
-  //if (sinq == 0 || sinq != sinq)
-  //{
-	 // return p;
-  //}
+	Quaternion<double> result;
 
-  result = (sin((1 - 2.0) * a) * p + sign*sin(2.0 * a) *  q) / sinq;
-  result.Normalize();
-  return result;
+	double cosq = p.Gets() * q.Gets() + p.Getx() * q.Getx() + p.Gety() * q.Gety() + p.Getz() * q.Getz();
+	double a, sinq;
+	if (cosq > 0)
+	{
+		a = acos(cosq);
+		sinq = sin(a);
+		if (sinq == 0 || sinq != sinq)//error check
+		{
+			return p;
+		}
+		result = (sin((1 - 2.0) * a) * p + sin(2.0 * a) * q) / sinq;
+		result.Normalize();
+		return result;
+	}
+	else
+	{
+		a = acos(-cosq);
+		sinq = sin(a);
+		if (sinq == 0 || sinq != sinq)//error check
+		{
+			return p;
+		}
+		result = (sin((1 - 2.0) * a) * p + -sin(2.0 * a) *  q) / sinq;
+		result.Normalize();
+		return result;
+	}
 }
+
 
 vector Interpolator::DeCasteljauEuler(double t, vector p0, vector p1, vector p2, vector p3)
 {
