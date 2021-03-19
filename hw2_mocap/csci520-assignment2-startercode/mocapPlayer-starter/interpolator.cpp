@@ -135,14 +135,13 @@ void Interpolator::BezierInterpolationEuler(Motion * pInputMotion, Motion * pOut
 		int endKeyframe = startKeyframe + N + 1;
 		int preKeyframe = startKeyframe - N - 1;
 		int nextKeyframe = endKeyframe + N + 1;
-
+		printf("1");
 		Posture * startPosture = pInputMotion->GetPosture(startKeyframe);
 		Posture * endPosture = pInputMotion->GetPosture(endKeyframe);
 
 		// copy start and end keyframe
 		pOutputMotion->SetPosture(startKeyframe, *startPosture);
 		pOutputMotion->SetPosture(endKeyframe, *endPosture);
-
 
 		// interpolate in between
 		Posture * prevPosture;
@@ -158,14 +157,17 @@ void Interpolator::BezierInterpolationEuler(Motion * pInputMotion, Motion * pOut
 			// interpolate root position
 			if (startKeyframe == 0)	{
 				//first frame
+				printf("nx %d\n", nextKeyframe);
 				nextPosture = pInputMotion->GetPosture(nextKeyframe);
 				p3 = nextPosture->root_pos;
 				a = p1 + ((p2 + p2 - p3) - p1) / 3;
 				b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
 			}else{
+				printf("nx %d\n", preKeyframe);
 				prevPosture = pInputMotion->GetPosture(preKeyframe);
 				p0 = prevPosture->root_pos;
-				if (nextKeyframe <= inputLength){
+				if (nextKeyframe < inputLength){
+					printf("nx2 %d\n", nextKeyframe);
 					nextPosture = pInputMotion->GetPosture(nextKeyframe);
 					p3 = nextPosture->root_pos;
 					a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
@@ -173,6 +175,7 @@ void Interpolator::BezierInterpolationEuler(Motion * pInputMotion, Motion * pOut
 				}
 				else{
 					//last frame
+					nextPosture = prevPosture;
 					a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
 					b = p2 + ((p1 + p1 - p0) - p2) / 3;
 				}
