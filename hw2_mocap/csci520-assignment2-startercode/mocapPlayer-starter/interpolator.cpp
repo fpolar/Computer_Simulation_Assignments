@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <float.h>
+#include <algorithm>
 #include "motion.h"
 #include "interpolator.h"
 #include "types.h"
@@ -41,9 +42,6 @@ void Interpolator::Interpolate(Motion * pInputMotion, Motion ** pOutputMotion, i
 	}
 }
 
-
-
-//	LinearInterpolation
 void Interpolator::LinearInterpolationEuler(Motion * pInputMotion, Motion * pOutputMotion, int N)
 {
 	int inputLength = pInputMotion->GetNumFrames(); // frames are indexed 0, ..., inputLength-1
