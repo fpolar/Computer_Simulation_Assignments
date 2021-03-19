@@ -6,24 +6,6 @@
 #include "interpolator.h"
 #include "types.h"
 
-//degree to radian
-#define M_D2R(degree,radian)\
-	radian = (double)(degree / 180) * M_PI;
-
-//matrix multiplication C = A x B
-#define mx_mul(A,B,C)\
-	C[0] = A[0] * B[0] + A[1] * B[3] + A[2] * B[6]; \
-	C[1] = A[0] * B[1] + A[1] * B[4] + A[2] * B[7]; \
-	C[2] = A[0] * B[2] + A[1] * B[5] + A[2] * B[8]; \
-	C[3] = A[3] * B[0] + A[4] * B[3] + A[5] * B[6]; \
-	C[4] = A[3] * B[1] + A[4] * B[4] + A[5] * B[7]; \
-	C[5] = A[3] * B[2] + A[4] * B[5] + A[5] * B[8]; \
-	C[6] = A[6] * B[0] + A[7] * B[3] + A[8] * B[6]; \
-	C[7] = A[6] * B[1] + A[7] * B[4] + A[8] * B[7]; \
-	C[8] = A[6] * B[2] + A[7] * B[5] + A[8] * B[8];
-
-
-
 Interpolator::Interpolator()
 {
 	//Set default interpolation type
@@ -37,9 +19,70 @@ Interpolator::~Interpolator()
 {
 }
 
+//Create interpolated motion
+void Interpolator::Interpolate(Motion * pInputMotion, Motion ** pOutputMotion, int N)
+{
+	//Allocate new motion
+	*pOutputMotion = new Motion(pInputMotion->GetNumFrames(), pInputMotion->GetSkeleton());
+
+	//Perform the interpolation
+	if ((m_InterpolationType == LINEAR) && (m_AngleRepresentation == EULER))
+		LinearInterpolationEuler(pInputMotion, *pOutputMotion, N);
+	else if ((m_InterpolationType == LINEAR) && (m_AngleRepresentation == QUATERNION))
+		LinearInterpolationQuaternion(pInputMotion, *pOutputMotion, N);
+	else if ((m_InterpolationType == BEZIER) && (m_AngleRepresentation == EULER))
+		BezierInterpolationEuler(pInputMotion, *pOutputMotion, N);
+	else if ((m_InterpolationType == BEZIER) && (m_AngleRepresentation == QUATERNION))
+		BezierInterpolationQuaternion(pInputMotion, *pOutputMotion, N);
+	else
+	{
+		printf("Error: unknown interpolation / angle representation type.\n");
+		exit(1);
+	}
+}
 
 
-//	Conversions
+
+//	LinearInterpolation
+void Interpolator::LinearInterpolationEuler(Motion * pInputMotion, Motion * pOutputMotion, int N)
+{
+	int inputLength = pInputMotion->GetNumFrames(); // frames are indexed 0, ..., inputLength-1
+
+	int startKeyframe = 0;
+	while (startKeyframe + N + 1 < inputLength)
+	{
+		int endKeyframe = startKeyframe + N + 1;
+
+		Posture * startPosture = pInputMotion->GetPosture(startKeyframe);
+		Posture * endPosture = pInputMotion->GetPosture(endKeyframe);
+
+		// copy start and end keyframe
+		pOutputMotion->SetPosture(startKeyframe, *startPosture);
+		pOutputMotion->SetPosture(endKeyframe, *endPosture);
+
+		// interpolate in between
+		for (int frame = 1; frame <= N; frame++)
+		{
+			Posture interpolatedPosture;
+			double t = 1.0 * frame / (N + 1);
+
+			// interpolate root position
+			interpolatedPosture.root_pos = startPosture->root_pos * (1 - t) + endPosture->root_pos * t;
+
+			// interpolate bone rotations
+			for (int bone = 0; bone < MAX_BONES_IN_ASF_FILE; bone++)
+				interpolatedPosture.bone_rotation[bone] = startPosture->bone_rotation[bone] * (1 - t) + endPosture->bone_rotation[bone] * t;
+
+			pOutputMotion->SetPosture(startKeyframe + frame, interpolatedPosture);
+		}
+
+		startKeyframe = endKeyframe;
+	}
+
+	for (int frame = startKeyframe + 1; frame < inputLength; frame++)
+		pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
+}
+
 void Interpolator::Rotation2Euler(double R[9], double angles[3])
 {
 	double cy = sqrt(R[0] * R[0] + R[3] * R[3]);
@@ -63,35 +106,279 @@ void Interpolator::Rotation2Euler(double R[9], double angles[3])
 
 void Interpolator::Euler2Rotation(double angles[3], double R[9])
 {
-	//degree to radian
-	double r0, r1, r2;
-	M_D2R(angles[0], r0);
-	M_D2R(angles[1], r1);
-	M_D2R(angles[2], r2);
-
-	//build up rotation matrixes
-	double m_rotx[9] = {
+	//converting degrees to radians then to rotation matrices
+	double radians[3] = { (double)(angles[0] / 180) * M_PI, (double)(angles[1] / 180) * M_PI, (double)(angles[2] / 180) * M_PI};
+	double rx[9] = {
 		1.0, 0.0, 0.0,
-		0.0, cos(r0), -sin(r0),
-		0.0, sin(r0), cos(r0)
+		0.0, cos(radians[0]), -sin(radians[0]),
+		0.0, sin(radians[0]), cos(radians[0])
 	};
 
-	double m_roty[9] = {
-		cos(r1), 0.0, sin(r1),
+	double ry[9] = {
+		cos(radians[1]), 0.0, sin(radians[1]),
 		0.0, 1.0, 0.0,
-		-sin(r1), 0.0, cos(r1)
+		-sin(radians[1]), 0.0, cos(radians[1])
 	};
 
-	double m_rotz[9] = {
-		cos(r2), -sin(r2), 0.0,
-		sin(r2), cos(r2), 0.0,
+	double rz[9] = {
+		cos(radians[2]), -sin(radians[2]), 0.0,
+		sin(radians[2]), cos(radians[2]), 0.0,
 		0.0, 0.0, 1.0
 	};
 
-	double tmp[9];
+	double rz_ry[9];
 
-	mx_mul(m_rotz, m_roty, tmp)
-		mx_mul(tmp, m_rotx, R)
+	//multiplying rotation matrices to get 1 total rotation matrix
+	MatrixMultiply(rz, ry, rz_ry);
+	MatrixMultiply(rz_ry, rx, R);
+}
+
+void Interpolator::BezierInterpolationEuler(Motion * pInputMotion, Motion * pOutputMotion, int N)
+{
+	int inputLength = pInputMotion->GetNumFrames(); // frames are indexed 0, ..., inputLength-1
+
+	int startKeyframe = 0;
+
+	vector p0, p1, p2, p3, a, b;
+
+	while (startKeyframe + N + 1 < inputLength)
+	{
+		int endKeyframe = startKeyframe + N + 1;
+		int preKeyframe = startKeyframe - N - 1;
+		int nextKeyframe = endKeyframe + N + 1;
+
+
+		// copy start and end keyframe
+		Posture * startPosture = pInputMotion->GetPosture(startKeyframe);
+		Posture * endPosture = pInputMotion->GetPosture(endKeyframe);
+		pOutputMotion->SetPosture(startKeyframe, *startPosture);
+		pOutputMotion->SetPosture(endKeyframe, *endPosture);
+
+		// interpolate in between
+		Posture * prePosture;
+		Posture * nextPosture;
+		for (int frame = 1; frame <= N; frame++)
+		{
+			Posture interpolatedPosture;
+			double t = 1.0 * frame / (N + 1);
+
+			p1 = startPosture->root_pos;
+			p2 = endPosture->root_pos;
+
+			// interpolate root position
+			if (startKeyframe == 0) {
+				//first frame, no previous posture
+				nextPosture = pInputMotion->GetPosture(nextKeyframe);
+				p3 = nextPosture->root_pos;
+				a = p1 + ((p2 + p2 - p3) - p1) / 3;
+				b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
+			}
+			else {
+				prePosture = pInputMotion->GetPosture(preKeyframe);
+				p0 = prePosture->root_pos;
+				if (nextKeyframe < inputLength)
+				{
+					nextPosture = pInputMotion->GetPosture(nextKeyframe);
+					p3 = nextPosture->root_pos;
+					a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
+					b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
+				}
+				else
+				{
+					//last frame, no next posture
+					nextPosture = prePosture;
+					a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
+					b = p2 + ((p1 + p1 - p0) - p2) / 3;
+				}
+			}
+
+			interpolatedPosture.root_pos = DeCasteljauEuler(t, p1, a, b, p2);
+
+			// interpolate bone rotations
+			for (int bone = 0; bone < MAX_BONES_IN_ASF_FILE; bone++)
+			{
+
+				p1 = startPosture->bone_rotation[bone];
+				p2 = endPosture->bone_rotation[bone];
+
+				if (startKeyframe == 0) {
+					p3 = nextPosture->bone_rotation[bone];
+					a = p1 + ((p2 + p2 - p3) - p1) / 3;
+					b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
+				}
+				else {
+					p0 = prePosture->bone_rotation[bone];
+					if (nextKeyframe <= inputLength)
+					{
+						p3 = nextPosture->bone_rotation[bone];
+						a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
+						b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
+					}
+					else {
+						a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
+						b = p2 + ((p1 + p1 - p0) - p2) / 3;
+					}
+				}
+
+				interpolatedPosture.bone_rotation[bone] = DeCasteljauEuler(t, p1, a, b, p2);
+			}
+
+			pOutputMotion->SetPosture(startKeyframe + frame, interpolatedPosture);
+		}
+		startKeyframe = endKeyframe;
+	}
+	for (int frame = startKeyframe + 1; frame < inputLength; frame++)
+		pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
+}
+
+void Interpolator::LinearInterpolationQuaternion(Motion * pInputMotion, Motion * pOutputMotion, int N)
+{
+	int inputLength = pInputMotion->GetNumFrames();
+
+	int startKeyframe = 0;
+	while (startKeyframe + N + 1 < inputLength)
+	{
+		int endKeyframe = startKeyframe + N + 1;
+
+		Posture * startPosture = pInputMotion->GetPosture(startKeyframe);
+		Posture * endPosture = pInputMotion->GetPosture(endKeyframe);
+
+		// copy start and end keyframe
+		pOutputMotion->SetPosture(startKeyframe, *startPosture);
+		pOutputMotion->SetPosture(endKeyframe, *endPosture);
+
+		// interpolate in between
+		for (int frame = 1; frame <= N; frame++)
+		{
+			Posture interpolatedPosture;
+			double t = 1.0 * frame / (N + 1);
+
+			// interpolate root position
+			interpolatedPosture.root_pos = startPosture->root_pos * (1 - t) + endPosture->root_pos * t;
+
+			// interpolate bone rotations
+			Quaternion<double> qStart, qEnd;
+			for (int bone = 0; bone < MAX_BONES_IN_ASF_FILE; bone++)
+			{
+				Euler2Quaternion(startPosture->bone_rotation[bone].p, qStart);
+				Euler2Quaternion(endPosture->bone_rotation[bone].p, qEnd);
+				Quaternion2Euler(Slerp(t, qStart, qEnd), interpolatedPosture.bone_rotation[bone].p);
+			}
+			pOutputMotion->SetPosture(startKeyframe + frame, interpolatedPosture);
+		}
+
+		startKeyframe = endKeyframe;
+	}
+
+	for (int frame = startKeyframe + 1; frame < inputLength; frame++) {
+		pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
+	}
+}
+
+void Interpolator::BezierInterpolationQuaternion(Motion * pInputMotion, Motion * pOutputMotion, int N)
+{
+	int inputLength = pInputMotion->GetNumFrames(); // frames are indexed 0, ..., inputLength-1
+
+	int startKeyframe = 0;
+
+	vector p0, p1, p2, p3, a, b;
+	Quaternion<double> p0Quat,p1Quat,p2Quat,p3Quat, aQuat, bQuat;
+
+	while (startKeyframe + N + 1 < inputLength)
+	{
+		int endKeyframe = startKeyframe + N + 1;
+		int preKeyframe = startKeyframe - N - 1;
+		int nextKeyframe = endKeyframe + N + 1;
+
+		// copy start and end keyframe
+		Posture * startPosture = pInputMotion->GetPosture(startKeyframe);
+		Posture * endPosture = pInputMotion->GetPosture(endKeyframe);
+		pOutputMotion->SetPosture(startKeyframe, *startPosture);
+		pOutputMotion->SetPosture(endKeyframe, *endPosture);
+
+		// interpolate in between
+		Posture * prePosture;
+		Posture * nextPosture;
+		for (int frame = 1; frame <= N; frame++)
+		{
+			Posture interpolatedPosture;
+			double t = 1.0 * frame / (N + 1);
+
+			p1 = startPosture->root_pos;
+			p2 = endPosture->root_pos;
+
+			// interpolate root position
+			if (startKeyframe == 0)
+			{
+				//First frame, no previous posture so set to start
+				prePosture = pInputMotion->GetPosture(startKeyframe);
+				nextPosture = pInputMotion->GetPosture(nextKeyframe);
+				p3 = nextPosture->root_pos;
+				a = p1 + ((p2 + p2 - p3) - p1) / 3;
+				b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
+			}else{
+				prePosture = pInputMotion->GetPosture(preKeyframe);
+				p0 = prePosture->root_pos;
+
+				if (nextKeyframe < inputLength)
+				{
+					nextPosture = pInputMotion->GetPosture(nextKeyframe);
+					p3 = nextPosture->root_pos;
+					a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
+					b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
+				}
+				else
+				{
+					//Last frame, no next posture so set to previous posture
+					nextPosture = prePosture;
+					a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
+					b = p2 + ((p1 + p1 - p0) - p2) / 3;
+				}
+			}
+			
+			interpolatedPosture.root_pos = DeCasteljauEuler(t, p1, a, b, p2);
+
+			// interpolate bone rotations
+			for (int bone = 0; bone < MAX_BONES_IN_ASF_FILE; bone++)
+			{
+				Euler2Quaternion(startPosture->bone_rotation[bone].p, p1Quat);
+				Euler2Quaternion(endPosture->bone_rotation[bone].p, p2Quat);
+
+				if (startKeyframe == 0)
+				{
+					//First frame, no previous posture so set to start
+					Euler2Quaternion(prePosture->bone_rotation[bone].p, p0Quat);
+					if (nextKeyframe <= inputLength)
+					{
+						Euler2Quaternion(nextPosture->bone_rotation[bone].p, p3Quat);
+
+						aQuat = Slerp((1.0 / 3.0), p1Quat, Slerp(0.5, Double(p0Quat, p1Quat), p2Quat));
+						bQuat = Slerp((-1.0 / 3.0), p2Quat, Slerp(0.5, Double(p1Quat, p2Quat), p3Quat));
+					}
+					else
+					{
+						aQuat = Slerp((1.0 / 3.0), p1Quat, Slerp(0.5, Double(p0Quat, p1Quat), p2Quat));
+						bQuat = Slerp((1.0 / 3.0), p2Quat, Double(p0Quat, p1Quat));
+					}
+				}
+				else
+				{
+					Euler2Quaternion(nextPosture->bone_rotation[bone].p, p3Quat);
+
+					aQuat = Slerp((1.0 / 3.0), p1Quat, Double(p3Quat, p2Quat));
+					bQuat = Slerp((-1.0 / 3.0), p2Quat, Slerp(0.5, Double(p1Quat, p2Quat), p3Quat));
+				}
+				Quaternion2Euler(DeCasteljauQuaternion(t, p1Quat, aQuat, bQuat, p2Quat), interpolatedPosture.bone_rotation[bone].p);
+			}
+
+			pOutputMotion->SetPosture(startKeyframe + frame, interpolatedPosture);
+		}
+
+		startKeyframe = endKeyframe;
+	}
+
+	for (int frame = startKeyframe + 1; frame < inputLength; frame++)
+		pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
 }
 
 void Interpolator::Euler2Quaternion(double angles[3], Quaternion<double> & q)
@@ -108,8 +395,6 @@ void Interpolator::Quaternion2Euler(Quaternion<double> & q, double angles[3])
 	q.Quaternion2Matrix(R);
 	Rotation2Euler(R, angles);
 }
-
-
 
 //	Quaternion operations
 Quaternion<double> Interpolator::Slerp(double t, Quaternion<double> & qStart, Quaternion<double> & qEnd)
@@ -176,337 +461,6 @@ Quaternion<double> Interpolator::Double(Quaternion<double> p, Quaternion<double>
 	}
 }
 
-
-
-//Create interpolated motion
-void Interpolator::Interpolate(Motion * pInputMotion, Motion ** pOutputMotion, int N)
-{
-	//Allocate new motion
-	*pOutputMotion = new Motion(pInputMotion->GetNumFrames(), pInputMotion->GetSkeleton());
-
-	//Perform the interpolation
-	if ((m_InterpolationType == LINEAR) && (m_AngleRepresentation == EULER))
-		LinearInterpolationEuler(pInputMotion, *pOutputMotion, N);
-	else if ((m_InterpolationType == LINEAR) && (m_AngleRepresentation == QUATERNION))
-		LinearInterpolationQuaternion(pInputMotion, *pOutputMotion, N);
-	else if ((m_InterpolationType == BEZIER) && (m_AngleRepresentation == EULER))
-		BezierInterpolationEuler(pInputMotion, *pOutputMotion, N);
-	else if ((m_InterpolationType == BEZIER) && (m_AngleRepresentation == QUATERNION))
-		BezierInterpolationQuaternion(pInputMotion, *pOutputMotion, N);
-	else
-	{
-		printf("Error: unknown interpolation / angle representation type.\n");
-		exit(1);
-	}
-}
-
-
-
-//	LinearInterpolation
-void Interpolator::LinearInterpolationEuler(Motion * pInputMotion, Motion * pOutputMotion, int N)
-{
-	int inputLength = pInputMotion->GetNumFrames(); // frames are indexed 0, ..., inputLength-1
-
-	int startKeyframe = 0;
-	while (startKeyframe + N + 1 < inputLength)
-	{
-		int endKeyframe = startKeyframe + N + 1;
-
-		Posture * startPosture = pInputMotion->GetPosture(startKeyframe);
-		Posture * endPosture = pInputMotion->GetPosture(endKeyframe);
-
-		// copy start and end keyframe
-		pOutputMotion->SetPosture(startKeyframe, *startPosture);
-		pOutputMotion->SetPosture(endKeyframe, *endPosture);
-
-		// interpolate in between
-		for (int frame = 1; frame <= N; frame++)
-		{
-			Posture interpolatedPosture;
-			double t = 1.0 * frame / (N + 1);
-
-			// interpolate root position
-			interpolatedPosture.root_pos = startPosture->root_pos * (1 - t) + endPosture->root_pos * t;
-
-			// interpolate bone rotations
-			for (int bone = 0; bone < MAX_BONES_IN_ASF_FILE; bone++)
-				interpolatedPosture.bone_rotation[bone] = startPosture->bone_rotation[bone] * (1 - t) + endPosture->bone_rotation[bone] * t;
-
-			pOutputMotion->SetPosture(startKeyframe + frame, interpolatedPosture);
-		}
-
-		startKeyframe = endKeyframe;
-	}
-
-	for (int frame = startKeyframe + 1; frame < inputLength; frame++)
-		pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
-}
-
-void Interpolator::LinearInterpolationQuaternion(Motion * pInputMotion, Motion * pOutputMotion, int N)
-{
-	int inputLength = pInputMotion->GetNumFrames(); // frames are indexed 0, ..., inputLength-1
-
-	int startKeyframe = 0;
-	while (startKeyframe + N + 1 < inputLength)
-	{
-		int endKeyframe = startKeyframe + N + 1;
-
-		Posture * startPosture = pInputMotion->GetPosture(startKeyframe);
-		Posture * endPosture = pInputMotion->GetPosture(endKeyframe);
-
-		// copy start and end keyframe
-		pOutputMotion->SetPosture(startKeyframe, *startPosture);
-		pOutputMotion->SetPosture(endKeyframe, *endPosture);
-
-		// interpolate in between
-		for (int frame = 1; frame <= N; frame++)
-		{
-			Posture interpolatedPosture;
-			double t = 1.0 * frame / (N + 1);
-
-			// interpolate root position
-			interpolatedPosture.root_pos = startPosture->root_pos * (1 - t) + endPosture->root_pos * t;
-
-			// interpolate bone rotations
-			Quaternion<double> qStart, qEnd;
-			for (int bone = 0; bone < MAX_BONES_IN_ASF_FILE; bone++)
-			{
-				Euler2Quaternion(startPosture->bone_rotation[bone].p, qStart);
-				Euler2Quaternion(endPosture->bone_rotation[bone].p, qEnd);
-				Quaternion2Euler(Slerp(t, qStart, qEnd), interpolatedPosture.bone_rotation[bone].p);
-			}
-			pOutputMotion->SetPosture(startKeyframe + frame, interpolatedPosture);
-		}
-
-		startKeyframe = endKeyframe;
-	}
-
-	for (int frame = startKeyframe + 1; frame < inputLength; frame++)
-		pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
-}
-
-void Interpolator::BezierInterpolationEuler(Motion * pInputMotion, Motion * pOutputMotion, int N)
-{
-	int inputLength = pInputMotion->GetNumFrames(); // frames are indexed 0, ..., inputLength-1
-
-	int startKeyframe = 0;
-
-	vector p0, p1, p2, p3;
-	vector a, b;
-
-	while (startKeyframe + N + 1 < inputLength)
-	{
-		int endKeyframe = startKeyframe + N + 1;
-		int preKeyframe = startKeyframe - N - 1;
-		int nextKeyframe = endKeyframe + N + 1;
-
-		Posture * startPosture = pInputMotion->GetPosture(startKeyframe);
-		Posture * endPosture = pInputMotion->GetPosture(endKeyframe);
-		Posture * prePosture;
-		Posture * nextPosture;
-
-		// copy start and end keyframe
-		pOutputMotion->SetPosture(startKeyframe, *startPosture);
-		pOutputMotion->SetPosture(endKeyframe, *endPosture);
-
-		// interpolate in between
-		for (int frame = 1; frame <= N; frame++)
-		{
-			Posture interpolatedPosture;
-			double t = 1.0 * frame / (N + 1);
-
-			p1 = startPosture->root_pos;
-			p2 = endPosture->root_pos;
-
-			// interpolate root position
-			if (startKeyframe != 0)
-			{
-				prePosture = pInputMotion->GetPosture(preKeyframe);
-				p0 = prePosture->root_pos;
-
-				if (nextKeyframe <= inputLength)	//normal frame
-				{
-					nextPosture = pInputMotion->GetPosture(nextKeyframe);
-					p3 = nextPosture->root_pos;
-					a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
-					b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
-				}
-				else	//last frame
-				{
-					a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
-					b = p2 + ((p1 + p1 - p0) - p2) / 3;
-				}
-			}
-			else		//first frame
-			{
-				nextPosture = pInputMotion->GetPosture(nextKeyframe);
-				p3 = nextPosture->root_pos;
-				a = p1 + ((p2 + p2 - p3) - p1) / 3;
-				b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
-			}
-
-			interpolatedPosture.root_pos = DeCasteljauEuler(t, p1, a, b, p2);
-
-			// interpolate bone rotations
-			for (int bone = 0; bone < MAX_BONES_IN_ASF_FILE; bone++)
-			{
-
-				p1 = startPosture->bone_rotation[bone];
-				p2 = endPosture->bone_rotation[bone];
-
-				if (startKeyframe != 0)
-				{
-					p0 = prePosture->bone_rotation[bone];
-
-					if (nextKeyframe <= inputLength)	//normal frame
-					{
-						p3 = nextPosture->bone_rotation[bone];
-						a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
-						b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
-					}
-					else	//last frame
-					{
-						a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
-						b = p2 + ((p1 + p1 - p0) - p2) / 3;
-					}
-				}
-				else		//first frame
-				{
-					p3 = nextPosture->bone_rotation[bone];
-					a = p1 + ((p2 + p2 - p3) - p1) / 3;
-					b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
-				}
-				interpolatedPosture.bone_rotation[bone] = DeCasteljauEuler(t, p1, a, b, p2);
-			}
-
-			pOutputMotion->SetPosture(startKeyframe + frame, interpolatedPosture);
-		}
-		startKeyframe = endKeyframe;
-	}
-	for (int frame = startKeyframe + 1; frame < inputLength; frame++)
-		pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
-}
-
-void Interpolator::BezierInterpolationQuaternion(Motion * pInputMotion, Motion * pOutputMotion, int N)
-{
-	int inputLength = pInputMotion->GetNumFrames(); // frames are indexed 0, ..., inputLength-1
-
-	int startKeyframe = 0;
-
-	vector p0, p1, p2, p3;
-	vector a, b;
-
-	Quaternion<double> rp0;
-	Quaternion<double> rp1;
-	Quaternion<double> rp2;
-	Quaternion<double> rp3;
-
-	Quaternion<double> ra;
-	Quaternion<double> rb;
-
-	while (startKeyframe + N + 1 < inputLength)
-	{
-		int endKeyframe = startKeyframe + N + 1;
-		int preKeyframe = startKeyframe - N - 1;
-		int nextKeyframe = endKeyframe + N + 1;
-
-		Posture * startPosture = pInputMotion->GetPosture(startKeyframe);
-		Posture * endPosture = pInputMotion->GetPosture(endKeyframe);
-		Posture * prePosture;
-		Posture * nextPosture;
-
-		// copy start and end keyframe
-		pOutputMotion->SetPosture(startKeyframe, *startPosture);
-		pOutputMotion->SetPosture(endKeyframe, *endPosture);
-
-		// interpolate in between
-		for (int frame = 1; frame <= N; frame++)
-		{
-			Posture interpolatedPosture;
-			double t = 1.0 * frame / (N + 1);
-
-			p1 = startPosture->root_pos;
-			p2 = endPosture->root_pos;
-
-			// interpolate root position
-			if (startKeyframe != 0)
-			{
-				prePosture = pInputMotion->GetPosture(preKeyframe);
-				p0 = prePosture->root_pos;
-
-				if (nextKeyframe <= inputLength)	//normal frame
-				{
-					nextPosture = pInputMotion->GetPosture(nextKeyframe);
-					p3 = nextPosture->root_pos;
-					a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
-					b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
-				}
-				else	//last frame
-				{
-					a = p1 + (((p1 + p1 - p0) + p2) / 2 - p1) / 3;
-					b = p2 + ((p1 + p1 - p0) - p2) / 3;
-				}
-			}
-			else		//first frame
-			{
-				nextPosture = pInputMotion->GetPosture(nextKeyframe);
-				p3 = nextPosture->root_pos;
-				a = p1 + ((p2 + p2 - p3) - p1) / 3;
-				b = p2 - (((p2 + p2 - p1) + p3) / 2 - p2) / 3;
-			}
-
-			interpolatedPosture.root_pos = DeCasteljauEuler(t, p1, a, b, p2);
-			int error;
-			if (startKeyframe > 1025)
-				error = 0;
-
-
-			// interpolate bone rotations
-			for (int bone = 0; bone < MAX_BONES_IN_ASF_FILE; bone++)
-			{
-				Euler2Quaternion(startPosture->bone_rotation[bone].p, rp1);
-				Euler2Quaternion(endPosture->bone_rotation[bone].p, rp2);
-
-				if (startKeyframe != 0)
-				{
-					Euler2Quaternion(prePosture->bone_rotation[bone].p, rp0);
-					if (nextKeyframe <= inputLength)	//normal frame
-					{
-						Euler2Quaternion(nextPosture->bone_rotation[bone].p, rp3);
-
-						ra = Slerp((1.0 / 3.0), rp1, Slerp(0.5, Double(rp0, rp1), rp2));
-						rb = Slerp((-1.0 / 3.0), rp2, Slerp(0.5, Double(rp1, rp2), rp3));
-					}
-					else	//last frame
-					{
-						ra = Slerp((1.0 / 3.0), rp1, Slerp(0.5, Double(rp0, rp1), rp2));
-						rb = Slerp((1.0 / 3.0), rp2, Double(rp0, rp1));
-					}
-				}
-				else		//first frame
-				{
-					Euler2Quaternion(nextPosture->bone_rotation[bone].p, rp3);
-
-					ra = Slerp((1.0 / 3.0), rp1, Double(rp3, rp2));
-					rb = Slerp((-1.0 / 3.0), rp2, Slerp(0.5, Double(rp1, rp2), rp3));
-				}
-				Quaternion2Euler(DeCasteljauQuaternion(t, rp1, ra, rb, rp2), interpolatedPosture.bone_rotation[bone].p);
-			}
-
-			pOutputMotion->SetPosture(startKeyframe + frame, interpolatedPosture);
-		}
-
-		startKeyframe = endKeyframe;
-	}
-
-	for (int frame = startKeyframe + 1; frame < inputLength; frame++)
-		pOutputMotion->SetPosture(frame, *(pInputMotion->GetPosture(frame)));
-}
-
-
-
-//De Casteljau's algorithm
-//http://en.wikipedia.org/wiki/De_Casteljau%27s_algorithm
 vector Interpolator::DeCasteljauEuler(double t, vector p0, vector p1, vector p2, vector p3)
 {
 	vector q0, q1, q2;
