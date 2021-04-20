@@ -72,13 +72,13 @@ void forwardKinematicsFunction(
 	vector<Mat3<real>> localTransform(numJoints), globalTransform(numJoints);
 	vector<Vec3<real>> localTranslate(numJoints), globalTranslate(numJoints);
 
-	for (int i = 0; i < fk.getNumJoints(); ++i) {
-		// Calculate rotations
+	for (int i = 0; i < numJoints; ++i) {
+		// Compute rotations
 		euler[0] = eulerAngles[i * 3];
 		euler[1] = eulerAngles[i * 3 + 1];
 		euler[2] = eulerAngles[i * 3 + 2];
 
-		// Calculate localJointTransform
+		// Compute localJointTransform
 		Mat3<real> RMMatrix = Euler2Rotation(euler, fk.getJointRotateOrder(i));;
 		orient[0] = fk.getJointOrient(i).data()[0];
 		orient[1] = fk.getJointOrient(i).data()[1];
@@ -87,18 +87,13 @@ void forwardKinematicsFunction(
 		Mat3<real> ROMatrix = Euler2Rotation(orient, RotateOrder::XYZ);
 		localTransform[i] = ROMatrix * RMMatrix;
 
-		// Calculate localJointTranslate and globalJointTranslate
-		localTranslate[i][0] = fk.getJointRestTranslation(i)[0];
-		localTranslate[i][1] = fk.getJointRestTranslation(i)[1];
-		localTranslate[i][2] = fk.getJointRestTranslation(i)[2];
-
+		// Compute localJointTranslate and globalJointTranslate
 		int jointOrder = fk.getJointUpdateOrder(i);
+		globalTranslate[jointOrder][0] = localTranslate[i][0] = fk.getJointRestTranslation(i)[0];
+		globalTranslate[jointOrder][1] = localTranslate[i][1] = fk.getJointRestTranslation(i)[1];
+		globalTranslate[jointOrder][2] = localTranslate[i][2] = fk.getJointRestTranslation(i)[2];
 
-		globalTranslate[jointOrder][0] = fk.getJointRestTranslation(jointOrder)[0];
-		globalTranslate[jointOrder][1] = fk.getJointRestTranslation(jointOrder)[1];
-		globalTranslate[jointOrder][2] = fk.getJointRestTranslation(jointOrder)[2];
-
-		// If joint is root
+		// If current joint is the root
 		if (fk.getJointParent(jointOrder) == -1) {
 			globalTransform[jointOrder] = localTransform[jointOrder];
 		}else {
@@ -183,58 +178,49 @@ void IK::doIK(const Vec3d * targetHandlePositions, Vec3d * jointEulerAngles)
   // Upon exit, jointEulerAngles should contain the new Euler angles.
   double alpha = 0.001;
   vector<double> handleVertexPosition(FKOutputDim);
+  Eigen::MatrixXd eigenJacobian(FKOutputDim, FKInputDim), eigenJacobianTranspose, identityMatrix;
+
   ::function(adolc_tagID, FKOutputDim, FKInputDim, jointEulerAngles->data(), handleVertexPosition.data());
 
-  // Calculate Jacobian Matrix
+  // Compute Jacobian Matrix, J
   vector<double> jacobianMatrix(FKInputDim * FKOutputDim);
   vector<double*> jacobianMatrixRows(FKOutputDim);
-
   for (int i = 0; i < FKOutputDim; i++) {
 	  jacobianMatrixRows[i] = &jacobianMatrix[i * FKInputDim];
   }
   ::jacobian(adolc_tagID, FKOutputDim, FKInputDim, jointEulerAngles->data(), jacobianMatrixRows.data());
-
-  Eigen::MatrixXd eigenJacobian(FKOutputDim, FKInputDim), eigenJacobianTranspose, identityMatrix;
-
-  // Calculate Jacobian matrix
   for (int i = 0; i < FKOutputDim; i++) {
 	  for (int j = 0; j < FKInputDim; j++) {
 		  eigenJacobian(i, j) = jacobianMatrix[i * FKInputDim + j];
 	  }
   }
-
-  // Calculate Jacobian transpose matrix
+  // J^T
   eigenJacobianTranspose = eigenJacobian.transpose();
-
-  // Get the identity Matrix
+  // I
   identityMatrix = identityMatrix.Identity(FKInputDim, FKInputDim);
 
-  // Calculate delta B
+  // delta B
   vector<double> deltaB(FKOutputDim);
   Eigen::VectorXd eigenDeltaB(FKOutputDim);
-
   for (int i = 0; i < FKOutputDim; i++) {
 	  deltaB[i] = targetHandlePositions->data()[i] - handleVertexPosition.data()[i];
 	  eigenDeltaB[i] = deltaB[i];
   }
 
-  // Solve: (J^T * J + alpha * I) * deltaTheta = J^T * deltaB
-  // Solve for LHS and RHS separately and then combine to get delta theta
+  // (J^T * J + alpha * I) * deltaTheta = J^T * deltaB
   Eigen::MatrixXd lhs(FKInputDim, FKInputDim);
-  lhs = eigenJacobianTranspose * eigenJacobian + alpha * identityMatrix;
-
   Eigen::VectorXd rhs(FKOutputDim);
+  lhs = eigenJacobianTranspose * eigenJacobian + alpha * identityMatrix;
   rhs = eigenJacobianTranspose * eigenDeltaB;
 
-  // Find delta theta
+  // solve for delta theta
   Eigen::VectorXd eigenDeltaTheta = lhs.ldlt().solve(rhs);
   vector<double> deltaTheta(FKInputDim);
-
   for (int i = 0; i < FKInputDim; i++) {
 	  deltaTheta[i] = eigenDeltaTheta[i];
   }
 
-  // Update angles with delta theta
+  // Output
   for (int i = 0; i < numJoints; i++) {
 	  jointEulerAngles[i][0] = jointEulerAngles[i][0] + deltaTheta[i * 3];
 	  jointEulerAngles[i][1] = jointEulerAngles[i][1] + deltaTheta[i * 3 + 1];

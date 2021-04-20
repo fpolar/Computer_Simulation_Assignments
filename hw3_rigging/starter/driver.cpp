@@ -20,6 +20,7 @@
 #include "IK.h"
 #include "handleControl.h"
 #include "skeletonRenderer.h"
+#include "pic.h"
 #ifdef WIN32
   #include <windows.h>
 #endif
@@ -35,6 +36,8 @@
 
 #include <adolc/adolc.h>
 using namespace std;
+
+int saveScreenToFile = 0;
 
 static string meshFilename;
 static string configFilename;
@@ -84,6 +87,7 @@ static AveragingBuffer fpsBuffer(5);
 
 static vector<int> IKJointIDs;
 static vector<Vec3d> IKJointPos;
+int sprite = 0;
 
 //======================= Functions =============================
 
@@ -117,32 +121,71 @@ static void resetSkinningToRest()
 
 static void idleFunction()
 {
-  glutSetWindow(windowID);
-  counter.StopCounter();
-  // double dt = counter.GetElapsedTime();
-  counter.StartCounter();
+	glutSetWindow(windowID);
+	counter.StopCounter();
+	//double dt = counter.GetElapsedTime();
+	counter.StartCounter();
 
-  // Take appropriate action in case the user is dragging a vertex.
-  auto processDrag = [&](int vertex, Vec3d posDiff)
-  {
-    if (len2(posDiff) > 0 && handleControl.isHandleSelected())
-    {
-      IKJointPos[handleControl.getSelectedHandle()] += posDiff;
-    }
-  };
-  handleControl.processHandleMovement(id.getMousePosX(), id.getMousePosY(), id.shiftPressed(), processDrag);
+	// Take appropriate action in case the user is dragging a vertex.
+	auto processDrag = [&](int vertex, Vec3d posDiff)
+	{
+		if (len2(posDiff) > 0 && handleControl.isHandleSelected())
+		{
+			IKJointPos[handleControl.getSelectedHandle()] += posDiff;
+		}
+	};
+	handleControl.processHandleMovement(id.getMousePosX(), id.getMousePosY(), id.shiftPressed(), processDrag);
 
-  const int maxIKIters = 10;
-  const double maxOneStepDistance = modelRadius / 1000;
+	const int maxIKIters = 10;
+	const double maxOneStepDistance = modelRadius / 1000;
 
-  ik->doIK(IKJointPos.data(), fk->getJointEulerAngles());
+	ik->doIK(IKJointPos.data(), fk->getJointEulerAngles());
 
-  updateSkinnedMesh();
+	updateSkinnedMesh();
 
-  titleBarFrameCounter++;
-  // update title bar at 4 Hz
-  titleBarCounter.StopCounter();
-  double elapsedTime = titleBarCounter.GetElapsedTime();
+	titleBarFrameCounter++;
+	// update title bar at 4 Hz
+	titleBarCounter.StopCounter();
+	double elapsedTime = titleBarCounter.GetElapsedTime();
+
+	if (elapsedTime >= 1.0 / 15)
+	{
+		char s[20] = "picxxxx.ppm";
+
+		// save screen to file
+		s[3] = 48 + (sprite / 1000);
+		s[4] = 48 + (sprite % 1000) / 100;
+		s[5] = 48 + (sprite % 100) / 10;
+		s[6] = 48 + sprite % 10;
+
+		if (saveScreenToFile == 1)
+		{
+			// Allocate a picture buffer 
+			Pic * in = pic_alloc(windowWidth, windowHeight, 3, NULL);
+
+			printf("File to save to: %s\n", s);
+
+			for (int i = windowHeight - 1; i >= 0; i--)
+			{
+				glReadPixels(0, windowHeight - i - 1, windowWidth, 1, GL_RGB, GL_UNSIGNED_BYTE,
+					&in->pix[i*in->nx*in->bpp]);
+			}
+
+			if (ppm_write(s, in))
+				printf("File saved Successfully\n");
+			else
+				printf("Error in Saving\n");
+
+			pic_free(in);
+			saveScreenToFile = 1; // save only once, change this if you want continuos image generation (i.e. animation)
+			sprite++;
+		}
+
+		if (sprite >= 300) // allow only 300 snapshots
+		{
+			exit(0);
+		}
+	}
   if (elapsedTime >= 1.0 / 4)
   {
     titleBarCounter.StartCounter();
@@ -158,6 +201,7 @@ static void idleFunction()
   graphicsFrameID++;
   glutPostRedisplay();
 }
+
 
 static void reshape(int x, int y)
 {
@@ -321,6 +365,10 @@ static void keyboardFunc(unsigned char key, int x, int y)
     case 's':
       renderSkeleton = !renderSkeleton;
       break;
+
+	case ' ':
+		saveScreenToFile = 1 - saveScreenToFile;
+		break;
 
     default:
       break;

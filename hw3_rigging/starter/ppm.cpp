@@ -64,10 +64,6 @@ int ppm_get_size(char *file, int *nx, int *ny) {
     return 1;
 }
 
-/* Write a screenshot, in the PPM format, to the specified filename, in PPM format */
-void saveScreenshot(int windowWidth, int windowHeight, char *filename)
-{
-}
 
 /*
  * ppm_read: read a PPM file into memory.
